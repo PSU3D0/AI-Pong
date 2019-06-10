@@ -27,6 +27,14 @@ def predictBall(angle,x,y):
         return side + y
     elif angle > 0:
         return side + y
+
+def isMovingLeft(ballDirect):
+    ballDirect = abs(ballDirect)
+    if 90 < ballDirect < 270:
+        return True
+    else:
+        return False
+
         
         
     
@@ -38,7 +46,7 @@ class Paddle(pygame.sprite.Sprite):
         self.image = pygame.Surface([20,100])
         self.image.fill(WHITE)
         self.rect = self.image.get_rect()
-        self.rect.y = height//2
+        self.rect.centery = height//2
         self.speed = 1
         self.width = 100
         
@@ -62,6 +70,33 @@ class CPU(Paddle):
     def __init__(self):
         super(CPU,self).__init__()
         self.rect.x = 0
+        self.centerHold = height//2
+        self.y = self.centerHold
+
+
+    def goToPoint(self,point):
+        #Making seperate point function in order to have sprite center on prediction
+        #Makes sprite stop moving if close to point
+        if abs(self.y - point) > 5:
+            if self.y > point:
+                self.y -= 1
+            elif self.y < point:
+                self.y +=1
+
+        if self.y+50 >= (height-100):
+            self.y-=1
+        elif self.y-50 <= 0:
+            self.y+=1
+        self.rect.centery = self.y
+    def aiMove(self,prediction):
+        #Will add humanlike behavior
+        if prediction == None:
+            self.goToPoint(height//2)
+        else:
+            self.goToPoint(prediction)
+            
+
+
 
 
 class Ball(pygame.sprite.Sprite):
@@ -89,12 +124,12 @@ class Ball(pygame.sprite.Sprite):
         #self.speed*=1.1
         self.y = self.screenheight // 2
         #self.direction = random.randrange(-45,45)
-        
-        self.direction = -200
+        self.direction = 140
         #if random.randrange(2) == 0:
-        #   self.direction +=180
-        print("\nDirection:"+str(self.direction))
-        print("Prediction:"+str(predictBall(self.direction,self.x,self.y)))
+         #  self.direction +=180
+
+        #print("\nDirection:"+str(self.direction))
+        #print("Prediction:"+str(predictBall(self.direction,self.x,self.y)))
         
     
     def update(self):
@@ -106,8 +141,8 @@ class Ball(pygame.sprite.Sprite):
         self.rect.y = self.y
         self.rect.x = self.x
 
-        if self.rect.x == self.screenwidth or self.rect.x == 0:
-            print("Result: "+str(self.y))
+        if self.rect.x >= self.screenwidth or self.rect.x <= 0:
+            #print("Result: "+str(self.y))
             self.reset()
 
         if self.rect.y >= self.screenheight-10 or self.rect.y <= 0:
@@ -117,7 +152,6 @@ class Ball(pygame.sprite.Sprite):
         self.direction = (180-self.direction)%360
         self.direction -= c
         print(self.direction)
- 
         self.speed *= 1.1
 
 
@@ -140,6 +174,9 @@ def main():
     Paddles.add(player)
     Paddles.add(cpu)
     clock = pygame.time.Clock()
+
+    previousX = ball.x
+    prediction = None
     
     
     while True:
@@ -150,11 +187,14 @@ def main():
             
         if pygame.sprite.spritecollide(player, BallGroup, False):
              contact = (player.rect.y + player.width/2) - (ball.rect.y+ball.width/2)
-             ball.paddleCollide(contact)
+             #print(contact)
+             ball.paddleCollide(0)
+             #On paddle collide generate new prediction
 
         if pygame.sprite.spritecollide(cpu, BallGroup, False):
-             contact = (player.rect.y + player.width/2) - (ball.rect.y+ball.width/2)
-             #ball.paddleCollide(contact)
+             contact = (cpu.rect.y + cpu.width/2) - (ball.rect.y+ball.width/2)
+             #print(contact)
+             ball.paddleCollide(0)
 
         #Handle Player movement
         keystate = pygame.key.get_pressed()
@@ -163,8 +203,14 @@ def main():
         
         elif keystate[K_LEFT]:
             player.move(1)
+
+        if isMovingLeft(ball.direction) == True:
+            prediction = int(predictBall(ball.direction,ball.x,ball.y))
+        elif isMovingLeft(ball.direction) == False:
+            prediction = None
+
         
-        
+        cpu.aiMove(prediction)
         ball.update()
         Paddles.draw(screen)
         BallGroup.draw(screen)
